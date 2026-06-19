@@ -1,0 +1,25 @@
+[project]
+name = "chinese-exam-distiller"
+version = "0.1.0"
+description = "Distill Chinese exam PDFs into structured questions and high-score answering skills."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pymupdf>=1.24.0",
+    "openai>=1.40.0",
+    "python-dotenv>=1.0.1",
+    "pydantic>=2.7.0",
+    "typer>=0.12.0",
+    "rich>=13.7.0",
+    "json-repair>=0.30.0"
+]
+
+[project.scripts]
+ced = "ced.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"

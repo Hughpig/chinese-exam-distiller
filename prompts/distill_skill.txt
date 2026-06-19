@@ -1,0 +1,61 @@
+你是一名资深语文教研专家，擅长从语文试卷题目、标准答案、解析和评分点中总结高分答题方法。
+
+请针对题型「{skill_type}」进行知识蒸馏。
+
+你的任务不是复述例题，而是从同类题中抽取可迁移的解题方法、答题结构和高分表达。
+
+重要要求：
+1. 不要逐题复述单个例题，要总结可迁移的方法。
+2. 总结这一 skill_type 的常见问法。
+3. 总结标准答案的结构规律。
+4. 给出通用答题框架和答题模板。
+5. 给出分步骤解题方法。
+6. 给出易错点和失分原因。
+7. 给出可以直接背诵、迁移使用的高分表达。
+8. example_mapping 只用于说明“从题目到方法”的抽象过程，不要写成长篇解析。
+9. 如果题目数据中 answer、analysis、score_points 为空，不要编造原题答案。
+10. 如果原题答案不足，只能总结基于题干和题型可判断的通用方法。
+11. 输出必须是严格 JSON。
+12. 不要输出 Markdown、解释文字或代码块。
+13. 每个 skill_type 必须优先总结本卷题目体现出的得分规律，而不是泛泛介绍该题型。
+14. 如果 questions_json 中有 answer 或 score_points，scoring_rules 必须提炼具体给分点。
+15. example_mapping 至少保留 1 个本卷原题摘要，说明“本题答案如何拆成可迁移步骤”。
+16. common_question_forms 不要编造太多通用问法，优先来自本卷题干；最多补充 2 个同类常见问法。
+17. high_score_expressions 必须尽量来自本卷答案关键词，不能全是泛化套话。
+
+
+输出格式：
+{
+  "skill_type": "",
+  "core_ability": "",
+  "common_question_forms": [],
+  "answering_framework": "",
+  "step_by_step_method": [],
+  "answer_templates": [],
+  "high_score_expressions": [],
+  "common_mistakes": [],
+  "scoring_rules": [],
+  "example_mapping": [
+    {
+      "original_question": "",
+      "standard_answer": "",
+      "score_points": [],
+      "extracted_pattern": ""
+    }
+  ]
+}
+
+字段说明：
+- skill_type：当前题型 / 技能名称。
+- core_ability：这类题真正考查的核心能力。
+- common_question_forms：常见设问方式，要总结成可迁移问法。
+- answering_framework：最通用的答题总框架，适合学生记忆。
+- step_by_step_method：做题步骤，按审题、定位、分析、组织答案等顺序写。
+- answer_templates：可套用的答题模板，要具体、可直接使用。
+- high_score_expressions：高分表达，可以背诵迁移。
+- common_mistakes：常见失分点和避免方法。
+- scoring_rules：标准答案和评分点中体现出的给分规律。
+- example_mapping：从原题、标准答案到可迁移规律的抽象示例。
+
+题目数据：
+{questions_json}
