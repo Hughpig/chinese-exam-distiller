@@ -4,6 +4,7 @@ import typer
 from rich import print
 
 from ced.distiller import distill_all_groups
+from ced.generalize import generalize_all_manuals
 from ced.json_utils import read_json, write_json
 from ced.pdf_extract import extract_pdf_text, save_extracted_text
 from ced.question_group import group_questions_by_type
@@ -96,6 +97,17 @@ def distill(
 
 
 @app.command()
+def generalize(
+    input_path: str,
+    output_path: str = "data/general_skills/output.json",
+):
+    distilled_skills = read_json(input_path)
+    general_skills = generalize_all_manuals(distilled_skills)
+    write_json(general_skills, output_path)
+    print(f"[green]General skills saved to {output_path}[/green]")
+
+
+@app.command()
 def render(
     input_path: str,
     output_path: str = typer.Argument("data/study_guides/output.md"),
@@ -123,14 +135,23 @@ def pipeline(
     detailed_types: str | None = None,
     min_questions: int = 1,
     ignore_types: str | None = None,
+    general_skills: bool = typer.Option(
+        False,
+        "--general-skills/--no-general-skills",
+        help="Generate generalized skills and general study guide. This calls the LLM API.",
+    ),
 ):
+
     paper_name = name or Path(pdf_path).stem
 
     extracted_path = f"data/extracted_text/{paper_name}.json"
     structured_path = f"data/structured_json/{paper_name}.json"
     grouped_path = f"data/grouped_questions/{paper_name}.json"
     skills_path = f"data/distilled_skills/{paper_name}.json"
+    general_skills_path = f"data/general_skills/{paper_name}.json"
     guide_path = f"data/study_guides/{paper_name}.md"
+    general_guide_path = f"data/study_guides/{paper_name}_general.md"
+
 
     extracted = extract_pdf_text(pdf_path)
     save_extracted_text(extracted, extracted_path)
@@ -153,12 +174,30 @@ def pipeline(
         detailed_types=detailed_types,
     )
 
+    if general_skills:
+        generalized = generalize_all_manuals(skills)
+        write_json(generalized, general_skills_path)
+
+        save_skill_markdown(
+            generalized,
+            general_guide_path,
+            mode=mode,
+            brief_types=brief_types,
+            detailed_types=detailed_types,
+        )
+
+
+
     print("[green]Pipeline completed.[/green]")
     print(f"Extracted: {extracted_path}")
     print(f"Structured: {structured_path}")
     print(f"Grouped: {grouped_path}")
-    print(f"Skills: {skills_path}")
+    print(f"Distilled skills: {skills_path}")
     print(f"Study guide: {guide_path}")
+    if general_skills:
+        print(f"General skills: {general_skills_path}")
+        print(f"General study guide: {general_guide_path}")
+
 
 if __name__ == "__main__":
     app()

@@ -97,6 +97,68 @@ def _contains_any(text: str, keywords: set[str]) -> bool:
     return any(keyword and keyword in text for keyword in keywords)
 
 
+def _dict_value_text(item: dict, keys: list[str]) -> str:
+    for key in keys:
+        value = _text(item.get(key))
+        if value:
+            return value
+    return ""
+
+
+def _subskill_lines(items: Any) -> list[str]:
+    lines = []
+
+    for item in _as_list(items):
+        if isinstance(item, dict):
+            name = _dict_value_text(item, ["name", "skill_name", "title"])
+            description = _dict_value_text(item, ["description", "summary"])
+            behavior = _dict_value_text(item, ["observable_behavior", "behavior", "表现"])
+
+            if name and description and behavior:
+                lines.append(f"- {name}：{description}（表现：{behavior}）")
+            elif name and description:
+                lines.append(f"- {name}：{description}")
+            elif name:
+                lines.append(f"- {name}")
+            continue
+
+        text = _text(item)
+        if text:
+            lines.append(f"- {text}")
+
+    return lines
+
+
+def _exam_application_lines(items: Any) -> list[str]:
+    lines = []
+
+    for item in _as_list(items):
+        if isinstance(item, dict):
+            source = _dict_value_text(item, ["source_skill_type", "source", "题型"])
+            forms = _first_present_list(item, ["common_question_forms", "question_forms", "常见问法"])
+            patterns = _first_present_list(item, ["answering_patterns", "patterns", "答题模式"])
+
+            parts = []
+            if forms:
+                parts.append("常见问法：" + "；".join(_text(form) for form in forms if _text(form)))
+            if patterns:
+                parts.append("答题路径：" + "；".join(_text(pattern) for pattern in patterns if _text(pattern)))
+
+            if source and parts:
+                lines.append(f"- {source}：" + "；".join(parts))
+            elif source:
+                lines.append(f"- {source}")
+            elif parts:
+                lines.append("- " + "；".join(parts))
+            continue
+
+        text = _text(item)
+        if text:
+            lines.append(f"- {text}")
+
+    return lines
+
+
 def _normalize_mode(mode: str) -> str:
     mode = _text(mode).lower() or "normal"
 
@@ -138,9 +200,11 @@ def _resolve_mode(
 def _get_skill_type(skill: dict, index: int) -> str:
     return (
         _text(skill.get("skill_type"))
+        or _text(skill.get("skill_name"))
         or _text(skill.get("type"))
         or _text(skill.get("name"))
         or _text(skill.get("question_type"))
+        or _text(skill.get("skill_id"))
         or f"考点 {index}"
     )
 
@@ -180,10 +244,12 @@ def _compact_core_ability(skill: dict) -> str:
             skill,
             [
                 "core_ability",
+                "transferable_ability",
                 "what_it_tests",
                 "exam_focus",
                 "description",
                 "summary",
+                "这类题在考什么",
             ],
         )
     )
@@ -571,8 +637,63 @@ def _render_detailed_skill_card(skill: dict, index: int) -> list[str]:
 
     return lines
 
+def _render_general_skill_card(skill: dict, index: int) -> list[str]:
+    skill_name = _get_skill_type(skill, index)
+
+    lines = [f"## {index}. {skill_name}", ""]
+
+    description = _first_present_text(skill, ["description", "summary"])
+    transferable_ability = _first_present_text(skill, ["transferable_ability", "core_ability"])
+
+    if description:
+        lines.extend(["### 能力说明", "", description, ""])
+
+    if transferable_ability:
+        lines.extend(["### 可迁移能力", "", transferable_ability, ""])
+
+    lines.extend(
+        _section(
+            "前置基础",
+            _bullet_lines(
+                _first_present_list(skill, ["prerequisites", "基础要求", "前置知识"]),
+            ),
+        )
+    )
+
+    lines.extend(
+        _section(
+            "子能力",
+            _subskill_lines(
+                _first_present_list(skill, ["subskills", "sub_skills", "子能力"]),
+            ),
+        )
+    )
+
+    lines.extend(
+        _section(
+            "考试应用",
+            _exam_application_lines(
+                _first_present_list(skill, ["exam_application", "exam_applications", "应用场景"]),
+            ),
+        )
+    )
+
+    lines.extend(
+        _section(
+            "学习建议",
+            _bullet_lines(
+                _first_present_list(skill, ["learning_advice", "study_tips", "practice_suggestions"]),
+            ),
+        )
+    )
+
+    return lines
+
 
 def _render_skill_card(skill: dict, index: int, mode: str) -> list[str]:
+    if skill.get("skill_name") or skill.get("transferable_ability"):
+        return _render_general_skill_card(skill, index)
+
     if mode == "brief":
         return _render_brief_skill_card(skill, index)
 
@@ -584,6 +705,9 @@ def _render_skill_card(skill: dict, index: int, mode: str) -> list[str]:
 
 def _normalize_skills(skills: dict | list) -> list[dict]:
     if isinstance(skills, dict):
+        if isinstance(skills.get("skills"), list):
+            return [skill for skill in skills["skills"] if isinstance(skill, dict)]
+
         skill_items = []
 
         for key, value in skills.items():

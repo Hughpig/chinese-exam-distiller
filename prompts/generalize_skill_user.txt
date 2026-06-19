@@ -1,0 +1,76 @@
+请把下面的 distilled skill manual 泛化为一个 general skill object。
+
+你的目标不是总结答题技巧，而是抽象出这个题型背后的可迁移学习能力。
+
+重要要求：
+- 不要输出 Markdown。
+- 不要输出复习讲义。
+- 不要只是改写原 manual 的答题模板。
+- 不要把 skill 写成“某类题怎么答”。
+- 请抽象出学生需要掌握的认知能力、语言能力、阅读能力或表达能力。
+- 考试相关技巧只能放在 exam_application 字段中。
+- 输出必须是合法 JSON，不能包含 ```json 代码块。
+
+请严格输出如下 JSON 结构：
+
+{
+  "skill_id": "",
+  "skill_name": "",
+  "domain": "Chinese language learning",
+  "description": "",
+  "transferable_ability": "",
+  "prerequisites": [],
+  "subskills": [
+    {
+      "name": "",
+      "description": "",
+      "observable_behavior": ""
+    }
+  ],
+  "mastery_criteria": [],
+  "practice_generation_rules": [],
+  "assessment_rubric": [
+    {
+      "criterion": "",
+      "description": "",
+      "weight": 0.0
+    }
+  ],
+  "common_misconceptions": [],
+  "related_skills": [],
+  "exam_application": {
+    "source_skill_type": "",
+    "common_question_forms": [],
+    "answering_patterns": []
+  },
+  "source_manual": {}
+}
+
+字段要求：
+- skill_id: 使用英文 snake_case，稳定、简短，可作为数据库 ID。
+- skill_name: 中文技能名，不要写成题型名，应该写成能力名。
+- domain: 固定为 "Chinese language learning"。
+- description: 用 1-2 句话说明这个技能是什么。
+- transferable_ability: 说明这个技能离开具体考试题型后，仍然可迁移到哪些阅读、写作、表达或思维任务中。
+- prerequisites: 学习这个技能前需要具备的基础知识或能力。
+- subskills: 拆成 3-6 个可训练的小能力。
+- subskills.name: 小能力名称。
+- subskills.description: 小能力说明。
+- subskills.observable_behavior: 学生掌握后可以被观察到的表现。
+- mastery_criteria: 判断学生已经掌握该技能的标准，要可观察、可诊断。
+- practice_generation_rules: 如何生成新的练习来训练该技能，不要只生成考试题。
+- assessment_rubric: 评分或诊断标准，weight 总和应接近 1.0。
+- common_misconceptions: 学生常见误区或薄弱点。
+- related_skills: 相关技能名称。
+- exam_application: 只存考试应用信息，不要让整个 skill object 变成答题模板。
+- source_manual: 保留原 manual 的核心信息，方便追溯，但不要原样复制全部内容。
+
+泛化原则：
+- 如果原 manual 是“诗歌炼字题”，skill 应该泛化为“词语表达效果分析能力”。
+- 如果原 manual 是“小说人物形象题”，skill 应该泛化为“人物塑造与性格推断能力”。
+- 如果原 manual 是“论述类文本筛选信息题”，skill 应该泛化为“文本信息定位、比较与判断能力”。
+- 如果原 manual 是“作文审题立意”，skill 应该泛化为“任务约束识别与观点建构能力”。
+
+原始 manual：
+
+{manual_json}
