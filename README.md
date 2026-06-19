@@ -1,170 +1,341 @@
-# Chinese Exam Distiller
+# 语文考试试卷蒸馏
 
-Chinese Exam Distiller is an open-source data engineering toolkit for turning Chinese exam PDFs into structured question data and distilled high-score answering skills.
+这个项目用于把语文试卷能力蒸馏结果整理成 Markdown 复习文档。
 
-The core idea is:
+它的目标不是按题号复盘，而是把题目背后的可迁移能力、常见问法、答题路径和易错点抽出来，方便学生按“考点 / 技能”复习。
 
-```text
-PDF exam paper
-  → extracted text
-  → structured questions
-  → questions grouped by skill_type
-  → distilled skill JSON
-  → optional Markdown study guide
+## 功能
+
+- 将 distilled skills 渲染成考点复盘 Markdown
+- 将 general skills 渲染成通用能力复习 Markdown
+- 支持 brief / normal / detailed 三种渲染模式
+- 支持按技能类型自动切换简略或详细展示
+- 支持保存为 `.md` 文件，后续可转 PDF、HTML 或导入笔记软件
+
+## 输入格式
+
+### Distilled Skills
+
+适合单份试卷或一批题目蒸馏后的技能结果。
+
+示例：
+
+```json
+[
+  {
+    "skill_type": "句子作用分析",
+    "core_ability": "考查学生理解句子在内容、结构和表达效果中的作用。",
+    "common_question_forms": [
+      "某句话在文中有什么作用？",
+      "请分析画线句子的表达效果。"
+    ],
+    "answering_framework": "内容作用 + 结构作用 + 情感 / 主旨作用",
+    "step_by_step_method": [
+      "审清题干，确定分析对象。",
+      "回到原文，结合上下文理解句意。",
+      "从内容、结构、情感三个角度组织答案。"
+    ],
+    "answer_templates": [
+      "这句话写出了……，表现了……，为下文……作铺垫。"
+    ],
+    "high_score_expressions": [
+      "推动情节发展",
+      "照应标题",
+      "突出人物形象"
+    ],
+    "common_mistakes": [
+      "只解释句子表层意思，没有分析作用。",
+      "脱离文本空套术语。"
+    ]
+  }
+]
 ```
 
-## Features
-
-- Extract text from text-based Chinese exam PDFs
-- Convert raw exam text into structured question JSON with LLMs
-- Classify questions by `skill_type`, such as 文言句子翻译, 古诗情感赏析, 描写方法及作用
-- Distill reusable answering skills from questions, answers, analyses, and scoring points
-- Store distilled skills as structured JSON for search, reuse, and future training
-- Render distilled skills into human-readable Markdown study guides
-- Use OpenAI-compatible APIs, including OpenAI, DeepSeek, and other providers
-
-## What Is a Skill?
-
-In this project, a skill is a structured learning object distilled from a group of similar exam questions.
-
-A `skill_type` is the label attached to each question:
+也支持对象形式：
 
 ```json
 {
-  "id": "12",
-  "stem": "把第②段画线句译成现代汉语。",
-  "skill_type": "文言句子翻译"
+  "句子作用分析": {
+    "core_ability": "考查学生理解句子在内容、结构和表达效果中的作用。"
+  }
 }
 ```
 
-A distilled skill is the reusable strategy generated from all questions with the same `skill_type`:
+### General Skills
+
+适合多份试卷汇总后形成的通用能力模型。
+
+示例：
 
 ```json
 {
-  "skill_type": "文言句子翻译",
-  "description": "在理解文言实词、虚词、特殊句式及语境的基础上，准确、通顺地转换为现代汉语。",
-  "common_questions": [
-    "把第②段画线句译成现代汉语。",
-    "将文中画线的句子翻译成现代汉语。"
-  ],
-  "framework": "审清语境 → 切分意群 → 逐词对译 → 调整语序 → 补足省略 → 通顺润色 → 检查得分点",
-  "steps": [],
-  "templates": [],
-  "pitfalls": [],
-  "examples": []
+  "skills": [
+    {
+      "skill_id": "memory_context_validation",
+      "skill_name": "古诗文名句准确记忆与语境验证能力",
+      "description": "能够准确回忆指定篇目中的名句，并结合语境判断填写内容。",
+      "transferable_ability": "该能力可迁移至古诗文默写、语言积累和文学常识类任务。",
+      "prerequisites": [
+        "熟悉课内必背篇目",
+        "掌握常见易错字",
+        "理解句子基本语境"
+      ],
+      "subskills": [
+        {
+          "name": "精确记忆",
+          "description": "能够准确回忆指定篇目中的名句，包括字词顺序和标点。",
+          "observable_behavior": "学生能不看原文完整默写句子。"
+        }
+      ],
+      "exam_application": [
+        {
+          "source_skill_type": "名句默写与诗文积累",
+          "common_question_forms": [
+            "按要求填空。",
+            "补写出下列句子中的空缺部分。"
+          ],
+          "answering_patterns": [
+            "审题定位→回忆原文→逐字核对→规范书写→检查语境"
+          ]
+        }
+      ]
+    }
+  ]
 }
 ```
 
-JSON is the source of truth for a skill. Markdown is only a presentation format generated from the skill JSON.
+## Markdown 渲染
 
-## Quick Start
-
-```bash
-pip install -e .
-cp .env.example .env
-```
-
-Put PDF files into:
+核心渲染逻辑在：
 
 ```text
-data/raw_pdf/
+skill_renderer.py
 ```
 
-Run the full pipeline:
+主要函数：
+
+```python
+render_skill_markdown(skills, mode="normal")
+save_skill_markdown(skills, output_path, mode="normal")
+```
+
+示例：
+
+```python
+import json
+from skill_renderer import save_skill_markdown
+
+with open("data/general_skills/sample.json", "r", encoding="utf-8") as f:
+    skills = json.load(f)
+
+save_skill_markdown(
+    skills,
+    "data/study_guides/sample_general.md",
+    mode="normal",
+)
+```
+
+如果项目中已经接入 CLI，可以使用类似命令：
 
 ```bash
-ced pipeline data/raw_pdf/sample.pdf --name sample
+ced render data/general_skills/sample.json data/study_guides/sample_general.md
 ```
 
-Or run step by step:
+## 渲染模式
 
-```bash
-ced extract data/raw_pdf/sample.pdf --output-path data/extracted_text/sample.json
-ced structure data/extracted_text/sample.json --output-path data/structured_json/sample.json
-ced group data/structured_json/sample.json --output-path data/grouped_questions/sample.json
-ced distill data/grouped_questions/sample.json --output-path data/distilled_skills/sample.json
-```
-
-## Pipeline Outputs
+支持三种模式：
 
 ```text
-data/extracted_text/      Raw text extracted from PDF
-data/structured_json/     Structured exam questions with skill_type labels
-data/grouped_questions/   Questions grouped by skill_type
-data/distilled_skills/    Distilled skill JSON files
-data/study_guides/        Optional Markdown study guides rendered from skill JSON
+brief
+normal
+detailed
 ```
 
-## Data Flow
+### brief
 
-### 1. Extract
+适合基础识记类考点，输出更短：
 
-Extract text from a text-based PDF.
+- 考什么
+- 怎么做
+- 易错点
 
-```bash
-ced extract data/raw_pdf/sample.pdf --output-path data/extracted_text/sample.json
+### normal
+
+默认模式，适合大多数技能：
+
+- 这类题在考什么
+- 常见问法
+- 答题框架
+- 解题步骤
+- 答题模板
+- 高分表达
+- 易错点
+
+### detailed
+
+适合阅读理解、作文、文言文、古诗赏析等复杂技能，会尽量输出完整信息，并包含例题分析。
+
+## 自动简略 / 详细分类
+
+`skill_renderer.py` 内置两组默认分类：
+
+```python
+DEFAULT_BRIEF_SKILL_TYPES
+DEFAULT_DETAILED_SKILL_TYPES
 ```
 
-### 2. Structure
+例如：
 
-Use an LLM to convert extracted text into normalized question JSON.
+- 名句默写与诗文积累：默认 brief
+- 字音字形与词语运用：默认 brief
+- 句子作用分析：默认 detailed
+- 人物形象分析：默认 detailed
+- 古诗表现手法赏析：默认 detailed
 
-```bash
-ced structure data/extracted_text/sample.json --output-path data/structured_json/sample.json
+也可以在调用时覆盖：
+
+```python
+render_skill_markdown(
+    skills,
+    mode="normal",
+    brief_types={"文学文化常识"},
+    detailed_types={"句子作用分析", "语言赏析"},
+)
 ```
 
-Each question contains fields such as:
+## 字段兼容
+
+### 技能名称字段
+
+渲染器会依次读取：
+
+```text
+skill_type
+skill_name
+type
+name
+question_type
+skill_id
+```
+
+### 核心能力字段
+
+渲染器会依次读取：
+
+```text
+core_ability
+transferable_ability
+what_it_tests
+exam_focus
+description
+summary
+```
+
+### 常见问法字段
+
+```text
+common_question_forms
+common_questions
+question_forms
+常见问法
+```
+
+### 解题步骤字段
+
+```text
+step_by_step_method
+steps
+method_steps
+solving_steps
+解题步骤
+```
+
+### 答题框架字段
+
+```text
+answering_framework
+answer_framework
+framework
+template
+答题框架
+```
+
+### 易错点字段
+
+```text
+common_mistakes
+mistakes
+pitfalls
+易错点
+```
+
+## 常见问题
+
+### 生成的 Markdown 只有大标题
+
+通常是输入结构不匹配。
+
+如果输入是 general skills，需要保证外层结构是：
 
 ```json
 {
-  "id": "",
-  "section": "",
-  "stem": "",
-  "materials": "",
-  "answer": "",
-  "analysis": "",
-  "score_points": [],
-  "score": "",
-  "question_form": "",
-  "skill_type": "",
-  "skill_reason": ""
+  "skills": []
 }
 ```
 
-### 3. Group
+并且 `_normalize_skills()` 支持读取 `skills` 字段。
 
-Group structured questions by `skill_type`.
+### 子能力显示成 Python dict
+
+如果 Markdown 中出现类似内容：
+
+```text
+{'name': '精确记忆', 'description': '...', 'observable_behavior': '...'}
+```
+
+说明嵌套对象被直接转成了字符串。
+
+应使用 general skill 专用 formatter，例如：
+
+- `_subskill_lines()`
+- `_exam_application_lines()`
+
+不要直接用 `_bullet_lines()` 渲染 dict list。
+
+### 想减少 token 消耗
+
+建议把 general skills 生成作为显式选项，而不是 pipeline 默认步骤。
+
+例如只在用户传入：
 
 ```bash
-ced group data/structured_json/sample.json --output-path data/grouped_questions/sample.json
+--general-skills
 ```
 
-### 4. Distill
+时才运行通用能力汇总。
 
-Distill each question group into reusable answering skills.
+这样普通试卷蒸馏不会额外调用大模型生成全局能力模型。
+
+## 推荐输出目录
+
+```text
+data/
+  distilled_skills/
+  general_skills/
+  study_guides/
+```
+
+示例：
 
 ```bash
-ced distill data/grouped_questions/sample.json --output-path data/distilled_skills/sample.json
+data/general_skills/sample.json
+data/study_guides/sample_general.md
 ```
 
-The distilled JSON is designed for downstream search, recommendation, review planning, dataset generation, or Markdown rendering.
+## 开发建议
 
-## Environment Variables
-
-```env
-LLM_API_KEY=your_api_key
-LLM_BASE_URL=https://api.openai.com/v1
-LLM_MODEL=gpt-4o-mini
-```
-
-`LLM_API_KEY` can also be replaced by `OPENAI_API_KEY`.
-
-## Scope
-
-This project currently supports text-based PDFs only. OCR support may be added later.
-
-The current focus is Chinese exam papers, especially language/literature exams where questions can be distilled into reusable answering skills.
-
-## License
-
-MIT
+- renderer 只负责格式化，不负责调用模型
+- CLI 负责读取 JSON、调用 renderer、写入文件
+- pipeline 负责蒸馏流程编排
+- general skill 和 distilled skill 最好保持不同 schema
+- 对嵌套 dict 使用专用 formatter，避免 Markdown 中出现原始 Python dict
